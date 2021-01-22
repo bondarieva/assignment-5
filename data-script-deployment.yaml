@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml
+    kompose.version: 1.7.0 (HEAD)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: data-script
+  name: data-script
+spec:
+  replicas: 1
+  strategy: {}
+  selector:
+    matchLabels:
+      io.kompose.service: data-script
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        io.kompose.service: data-script
+    spec:
+      containers:
+      - image: bondarieva/quotes-data-script:v1.1
+        name: data-script
+        env:
+        - name: MYSQL_DB_HOST
+          valueFrom:
+              secretKeyRef:
+                name: data-script-secret
+                key: host
+        - name: MYSQL_USER
+          valueFrom:
+              secretKeyRef:
+                name: data-script-secret
+                key: user
+        - name: MYSQL_USER_PASSWORD
+          valueFrom:
+              secretKeyRef:
+                name: data-script-secret
+                key: password
+        resources: {}
+      restartPolicy: Always
+      initContainers:
+      - name: init-data-script
+        image: bondarieva/quotes-data-script:v1.1
+        args: ['sh', '-c', "until mysql -h ${MYSQL_DB_HOST} -u ${MYSQL_USER} -p${MYSQL_USER_PASSWORD} -e 'show databases;'; do echo waiting for mydb; sleep 2; done"]
+        env:
+        - name: MYSQL_DB_HOST
+          valueFrom:
+              secretKeyRef:
+                name: data-script-secret
+                key: host
+        - name: MYSQL_USER
+          valueFrom:
+              secretKeyRef:
+                name: data-script-secret
+                key: user
+        - name: MYSQL_USER_PASSWORD
+          valueFrom:
+              secretKeyRef:
+                name: data-script-secret
+                key: password
+status: {}

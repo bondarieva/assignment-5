@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: data
+  labels:
+    io.kompose.service: data
+spec:
+  ports:
+  - port: 3306
+    name: web
+  clusterIP: None
+  selector:
+    io.kompose.service: data
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml
+    kompose.version: 1.7.0 (HEAD)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: data
+  name: data
+spec:
+  replicas: 1
+  serviceName: "data"
+  selector:
+    matchLabels:
+      io.kompose.service: data
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        io.kompose.service: data
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - image: bondarieva/quotes-data:v1
+        name: data
+        args:
+        - "--ignore-db-dir=lost+found"
+        ports:
+        - containerPort: 3306
+        resources: {}
+        volumeMounts:
+        - name: data-pvc
+          mountPath: "/var/lib/mysql"
+        env:
+        - name: MYSQL_ALLOW_EMPTY_PASSWORD
+          valueFrom:
+              secretKeyRef:
+                name: data-secret
+                key: empty
+        - name: MYSQL_DATABASE
+          valueFrom:
+              secretKeyRef:
+                name: data-secret
+                key: db
+        - name: MYSQL_PASSWORD
+          valueFrom:
+              secretKeyRef:
+                name: data-secret
+                key: password
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+              secretKeyRef:
+                name: data-secret
+                key: rootPassword
+  volumeClaimTemplates:
+  - metadata:
+      name: data-pvc
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "standard"
+      resources:
+        requests:
+          storage: 2Gi
